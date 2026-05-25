@@ -59,6 +59,7 @@ def receipt_processor(blob: func.InputStream):
 
         receipt_data = {
             "id": str(uuid.uuid4()),
+            "userID": "demo-user",
             "blob_name": blob.name,
             "processed_at": datetime.utcnow().isoformat(),
             "status": "processed"
