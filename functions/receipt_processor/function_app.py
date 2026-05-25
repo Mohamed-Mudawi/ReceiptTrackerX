@@ -1,11 +1,38 @@
 import logging
 import os
+import uuid
+from datetime import datetime
 
 import azure.functions as func
+
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.core.credentials import AzureKeyCredential
 
+from azure.cosmos import CosmosClient
+
 app = func.FunctionApp()
+
+# OCR client
+document_analysis_client = DocumentAnalysisClient(
+    endpoint=os.environ["DOCUMENT_INTELLIGENCE_ENDPOINT"],
+    credential=AzureKeyCredential(
+        os.environ["DOCUMENT_INTELLIGENCE_KEY"]
+    )
+)
+
+# Cosmos client
+cosmos_client = CosmosClient(
+    os.environ["COSMOS_ENDPOINT"],
+    credential=os.environ["COSMOS_KEY"]
+)
+
+database = cosmos_client.get_database_client(
+    os.environ["COSMOS_DATABASE_NAME"]
+)
+
+container = database.get_container_client(
+    os.environ["COSMOS_CONTAINER_NAME"]
+)
 
 
 @app.function_name(name="receipt_processor")
@@ -13,38 +40,59 @@ app = func.FunctionApp()
     arg_name="blob",
     path="receipts/{name}",
     connection="RECEIPT_STORAGE_CONNECTION_STRING",
-    source=func.BlobSource.EVENT_GRID,
+    source=func.BlobSource.EVENT_GRID
 )
 def receipt_processor(blob: func.InputStream):
+
     logging.info("Receipt processor triggered.")
     logging.info(f"Blob name: {blob.name}")
-    logging.info(f"Blob size: {blob.length} bytes")
 
-    endpoint = os.environ["DOCUMENT_INTELLIGENCE_ENDPOINT"]
-    key = os.environ["DOCUMENT_INTELLIGENCE_KEY"]
+    try:
+        blob_bytes = blob.read()
 
-    client = DocumentAnalysisClient(
-        endpoint=endpoint,
-        credential=AzureKeyCredential(key),
-    )
+        poller = document_analysis_client.begin_analyze_document(
+            "prebuilt-receipt",
+            blob_bytes
+        )
 
-    receipt_bytes = blob.read()
+        result = poller.result()
 
-    poller = client.begin_analyze_document(
-        model_id="prebuilt-receipt",
-        document=receipt_bytes,
-    )
+        receipt_data = {
+            "id": str(uuid.uuid4()),
+            "blob_name": blob.name,
+            "processed_at": datetime.utcnow().isoformat(),
+            "status": "processed"
+        }
 
-    result = poller.result()
+        if result.documents:
 
-    for document in result.documents:
-        fields = document.fields
+            receipt = result.documents[0]
 
-        merchant = fields.get("MerchantName")
-        transaction_date = fields.get("TransactionDate")
-        total = fields.get("Total")
+            fields = receipt.fields
 
-        logging.info("OCR result:")
-        logging.info(f"Merchant: {merchant.value if merchant else None}")
-        logging.info(f"Transaction date: {transaction_date.value if transaction_date else None}")
-        logging.info(f"Total: {total.value if total else None}")
+            receipt_data["merchant_name"] = (
+                fields.get("MerchantName").value
+                if fields.get("MerchantName")
+                else None
+            )
+
+            receipt_data["transaction_date"] = (
+                str(fields.get("TransactionDate").value)
+                if fields.get("TransactionDate")
+                else None
+            )
+
+            receipt_data["total"] = (
+                fields.get("Total").value
+                if fields.get("Total")
+                else None
+            )
+
+        container.create_item(receipt_data)
+
+        logging.info("Receipt saved to Cosmos DB.")
+        logging.info(receipt_data)
+
+    except Exception as e:
+        logging.error(f"Error processing receipt: {str(e)}")
+        raise
