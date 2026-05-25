@@ -1,1 +1,3 @@
 azure-functions>=1.18.0
+azure-ai-formrecognizer
+azure-core
