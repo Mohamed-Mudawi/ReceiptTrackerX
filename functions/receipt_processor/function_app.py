@@ -9,7 +9,7 @@ app = func.FunctionApp()
     arg_name="blob",
     path="receipts/{name}",
     connection="RECEIPT_STORAGE_CONNECTION_STRING",
-    source="EventGrid"
+    source=func.BlobSource.EVENT_GRID
 )
 def receipt_processor(blob: func.InputStream):
     logging.info("Receipt processor triggered.")
