@@ -1,0 +1,34 @@
+name: Deploy Receipt Processor Function
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/receipt_processor/**"
+      - ".github/workflows/deploy-receipt-processor.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd functions/receipt_processor
+          pip install -r requirements.txt
+
+      - name: Deploy Azure Function
+        uses: Azure/functions-action@v1
+        with:
+          app-name: receipt-processor
+          package: functions/receipt_processor
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
