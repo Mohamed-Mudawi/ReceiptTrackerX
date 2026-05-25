@@ -32,3 +32,5 @@ jobs:
           app-name: receipt-processor
           package: functions/receipt_processor
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          sku: flexconsumption
+          remote-build: true
