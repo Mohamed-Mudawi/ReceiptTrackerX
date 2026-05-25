@@ -8,7 +8,7 @@ app = func.FunctionApp()
 @app.blob_trigger(
     arg_name="blob",
     path="receipts/{name}",
-    connection="RECEIPT_STORAGE_CONNECTION_STRING"
+    connection="AzureWebJobsRECEIPT_STORAGE_CONNECTION_STRING"
 )
 def receipt_processor(blob: func.InputStream):
     logging.info("Receipt processor triggered.")
