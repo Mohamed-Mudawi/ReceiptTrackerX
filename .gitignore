@@ -67,12 +67,6 @@ backup-*/
 .*.swp
 .SFTP_CACHE
 
-# Azure
-/azctx/
-/azprofile/
-
-# Infrastructure as code generated files
-.terraform/
-.terraform.lock.hcl
-*.tfstate
-*.tfstate.backup
+local.settings.json
+.venv/
+__pycache__/
