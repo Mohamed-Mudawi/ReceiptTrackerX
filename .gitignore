@@ -76,3 +76,6 @@ __pycache__/
 # Analysis worker
 analysis_worker/node_modules/
 analysis_worker/.env
+
+# API development settings
+api/appsettings.Development.json
