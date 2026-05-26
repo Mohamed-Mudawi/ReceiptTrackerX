@@ -138,7 +138,7 @@ async function handleMessage(message: ServiceBusReceivedMessage): Promise<void> 
 
 async function main(): Promise<void> {
   console.log("Analysis worker started.");
-  console.log("Analysis worker version: CI/CD test v3");
+  console.log("Analysis worker version: CI/CD test v4");
   console.log(`Listening on queue: ${queueName}`);
 
   receiver.subscribe({
