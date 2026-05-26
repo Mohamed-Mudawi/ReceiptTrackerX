@@ -9,14 +9,14 @@ const queueName = process.env.SERVICE_BUS_QUEUE_NAME;
 const cosmosEndpoint = process.env.COSMOS_ENDPOINT;
 const cosmosKey = process.env.COSMOS_KEY;
 const cosmosDatabaseName = process.env.COSMOS_DATABASE_NAME;
-const cosmosContainerName = process.env.COSMOS_CONTAINER_NAME;
+const cosmosSummariesContainerName = process.env.COSMOS_SUMMARIES_CONTAINER_NAME;
 
 if (!serviceBusConnectionString) throw new Error("Missing SERVICE_BUS_CONNECTION_STRING");
 if (!queueName) throw new Error("Missing SERVICE_BUS_QUEUE_NAME");
 if (!cosmosEndpoint) throw new Error("Missing COSMOS_ENDPOINT");
 if (!cosmosKey) throw new Error("Missing COSMOS_KEY");
 if (!cosmosDatabaseName) throw new Error("Missing COSMOS_DATABASE_NAME");
-if (!cosmosContainerName) throw new Error("Missing COSMOS_CONTAINER_NAME");
+if (!cosmosSummariesContainerName) throw new Error("Missing COSMOS_SUMMARIES_CONTAINER_NAME");
 
 type ReceiptMessage = {
   receiptId: string;
@@ -49,7 +49,7 @@ const cosmosClient = new CosmosClient({
 });
 
 const database = cosmosClient.database(cosmosDatabaseName);
-const container = database.container(cosmosContainerName);
+const summariesContainer = database.container(cosmosSummariesContainerName);
 
 function getMonthFromReceipt(message: ReceiptMessage): string {
   const dateSource = message.transaction_date || message.processed_at;
@@ -62,7 +62,7 @@ async function updateMonthlySummary(message: ReceiptMessage): Promise<void> {
   const summaryId = `${message.userID}-${month}`;
   const partitionKey = message.userID;
 
-  const summaryRef = container.item(summaryId, partitionKey);
+  const summaryRef = summariesContainer.item(summaryId, partitionKey);
 
   try {
     const { resource: existingSummary } =
@@ -112,7 +112,7 @@ async function updateMonthlySummary(message: ReceiptMessage): Promise<void> {
     updated_at: new Date().toISOString()
   };
 
-  await container.items.create(newSummary);
+  await summariesContainer.items.create(newSummary);
 
   console.log("Created monthly summary:", newSummary);
 }
@@ -139,6 +139,7 @@ async function handleMessage(message: ServiceBusReceivedMessage): Promise<void> 
 async function main(): Promise<void> {
   console.log("Analysis worker started.");
   console.log(`Listening on queue: ${queueName}`);
+  console.log(`Summaries container: ${cosmosSummariesContainerName}`);
 
   receiver.subscribe({
     processMessage: async (message) => {

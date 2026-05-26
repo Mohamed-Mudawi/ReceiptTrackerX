@@ -19,6 +19,8 @@ node_modules/
 /.out/
 /.cache/
 /.temp/
+api/bin/
+api/obj/
 
 # IDE and editor files
 .vscode/
