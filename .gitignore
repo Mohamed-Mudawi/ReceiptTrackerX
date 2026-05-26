@@ -70,3 +70,7 @@ backup-*/
 local.settings.json
 .venv/
 __pycache__/
+
+# Analysis worker
+analysis_worker/node_modules/
+analysis_worker/.env
