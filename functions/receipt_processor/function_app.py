@@ -13,13 +13,11 @@ from azure.servicebus import ServiceBusClient, ServiceBusMessage
 
 app = func.FunctionApp()
 
-# OCR client
 document_analysis_client = DocumentAnalysisClient(
     endpoint=os.environ["DOCUMENT_INTELLIGENCE_ENDPOINT"],
     credential=AzureKeyCredential(os.environ["DOCUMENT_INTELLIGENCE_KEY"])
 )
 
-# Cosmos client
 cosmos_client = CosmosClient(
     os.environ["COSMOS_ENDPOINT"],
     credential=os.environ["COSMOS_KEY"]
@@ -33,12 +31,25 @@ container = database.get_container_client(
     os.environ["COSMOS_CONTAINER_NAME"]
 )
 
-# Service Bus client
 service_bus_client = ServiceBusClient.from_connection_string(
     os.environ["SERVICE_BUS_CONNECTION_STRING"]
 )
 
 service_bus_queue_name = os.environ["SERVICE_BUS_QUEUE_NAME"]
+
+
+def get_user_id_from_blob_name(blob_name: str) -> str:
+    # blob.name usually looks like:
+    # receipts/USER_ID/RECEIPT_ID.png
+    parts = blob_name.split("/")
+
+    if len(parts) >= 3 and parts[0] == "receipts":
+        return parts[1]
+
+    if len(parts) >= 2:
+        return parts[0]
+
+    raise ValueError(f"Could not extract user ID from blob name: {blob_name}")
 
 
 @app.function_name(name="receipt_processor")
@@ -49,12 +60,12 @@ service_bus_queue_name = os.environ["SERVICE_BUS_QUEUE_NAME"]
     source=func.BlobSource.EVENT_GRID
 )
 def receipt_processor(blob: func.InputStream):
-
     logging.info("Receipt processor triggered.")
     logging.info(f"Blob name: {blob.name}")
 
     try:
         blob_bytes = blob.read()
+        user_id = get_user_id_from_blob_name(blob.name)
 
         poller = document_analysis_client.begin_analyze_document(
             "prebuilt-receipt",
@@ -65,7 +76,7 @@ def receipt_processor(blob: func.InputStream):
 
         receipt_data = {
             "id": str(uuid.uuid4()),
-            "userID": "demo-user",
+            "userID": user_id,
             "blob_name": blob.name,
             "processed_at": datetime.utcnow().isoformat(),
             "status": "processed"
