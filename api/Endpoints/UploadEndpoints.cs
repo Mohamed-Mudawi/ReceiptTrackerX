@@ -1,18 +1,24 @@
 using api.Services;
-using Microsoft.AspNetCore.Mvc;
 
 namespace api.Endpoints;
 
 public static class UploadEndpoints
 {
-    private const string DemoUserId = "demo-user";
-
     public static void MapUploadEndpoints(this WebApplication app)
     {
-        app.MapPost("/uploads/sas", ([FromServices] BlobStorageService blobStorageService) =>
+        app.MapPost("/uploads/sas", (
+            HttpContext httpContext,
+            BlobStorageService blobStorageService) =>
         {
-            var response = blobStorageService.CreateUploadUrl(DemoUserId);
+            var userId = httpContext.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+
+            if (userId is null)
+                return Results.Unauthorized();
+
+            var response = blobStorageService.CreateUploadUrl(userId);
+
             return Results.Ok(response);
-        });
+        })
+        .RequireAuthorization();
     }
 }

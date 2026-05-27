@@ -39,8 +39,6 @@ service_bus_queue_name = os.environ["SERVICE_BUS_QUEUE_NAME"]
 
 
 def get_user_id_from_blob_name(blob_name: str) -> str:
-    # blob.name usually looks like:
-    # receipts/USER_ID/RECEIPT_ID.png
     parts = blob_name.split("/")
 
     if len(parts) >= 3 and parts[0] == "receipts":
@@ -106,9 +104,6 @@ def receipt_processor(blob: func.InputStream):
 
         container.create_item(receipt_data)
 
-        logging.info("Receipt saved to Cosmos DB.")
-        logging.info(receipt_data)
-
         message_body = {
             "receiptId": receipt_data["id"],
             "userID": receipt_data["userID"],
@@ -125,11 +120,9 @@ def receipt_processor(blob: func.InputStream):
         )
 
         with sender:
-            sender.send_messages(
-                ServiceBusMessage(json.dumps(message_body))
-            )
+            sender.send_messages(ServiceBusMessage(json.dumps(message_body)))
 
-        logging.info("Receipt event sent to Service Bus.")
+        logging.info("Receipt saved to Cosmos DB and event sent to Service Bus.")
 
     except Exception as e:
         logging.error(f"Error processing receipt: {str(e)}")

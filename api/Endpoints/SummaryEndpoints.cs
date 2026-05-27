@@ -4,14 +4,21 @@ namespace api.Endpoints;
 
 public static class SummaryEndpoints
 {
-    private const string DemoUserId = "demo-user";
-
     public static void MapSummaryEndpoints(this WebApplication app)
     {
-        app.MapGet("/summary", async (CosmosService cosmosService) =>
+        app.MapGet("/summary", async (
+            HttpContext httpContext,
+            CosmosService cosmosService) =>
         {
-            var summaries = await cosmosService.GetSummariesForUserAsync(DemoUserId);
+            var userId = httpContext.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+
+            if (userId is null)
+                return Results.Unauthorized();
+
+            var summaries = await cosmosService.GetSummariesForUserAsync(userId);
+
             return Results.Ok(summaries);
-        });
+        })
+        .RequireAuthorization();
     }
 }
