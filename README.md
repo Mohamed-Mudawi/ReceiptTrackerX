@@ -95,7 +95,9 @@ Frontend uses MSAL to authenticate users and obtain API access tokens.
 
 The diagram below shows the high-level sequence of uploading a receipt and processing it asynchronously across the platform.
 
-![Receipt Upload Flow](docs/diagrams/upload-flow.png)
+<p align="center">
+  <img src="docs/diagrams/upload-flow.png" alt="Receipt Upload Flow" width="420" />
+</p>
 
 1. The user selects a receipt image from their device.
 2. The frontend requests a short-lived SAS URL from the API and uploads the file directly to Blob Storage.
@@ -111,7 +113,9 @@ The diagram below shows the high-level sequence of uploading a receipt and proce
 
 Users sign in with their Microsoft account through Microsoft Entra ID. The frontend uses MSAL to obtain a JWT access token, which is sent on every API call so the backend can authorize requests and scope data to the signed-in user.
 
-![Authentication Flow](docs/diagrams/auth-flow.png)
+<p align="center">
+  <img src="docs/diagrams/auth-flow.png" alt="Authentication Flow" width="420" />
+</p>
 
 1. The user opens the application in the browser.
 2. The frontend redirects the user to sign in with Microsoft.
