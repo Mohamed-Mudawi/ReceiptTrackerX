@@ -12,7 +12,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "https://wonderful-meadow-0dd696d0f7.azurestaticapps.net"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
