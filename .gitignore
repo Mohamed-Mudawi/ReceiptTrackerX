@@ -12,6 +12,7 @@ yarn.lock
 .env
 .env.*
 !.env.example
+!frontend/.env.production
 
 # Build outputs
 dist/
