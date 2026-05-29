@@ -1,196 +1,148 @@
-import { useState } from "react";
-import { useMsal } from "@azure/msal-react";
-import { loginRequest } from "./authConfig";
-
-type Receipt = {
-  id: string;
-  merchantName?: string;
-  total?: number;
-  transactionDate?: string;
-  status?: string;
-};
+import { Header } from './components/layout/Header';
+import { SignInScreen } from './components/layout/SignInScreen';
+import { ReceiptList } from './components/receipts/ReceiptList';
+import { ReceiptUploader } from './components/receipts/ReceiptUploader';
+import { MonthlySummary } from './components/summary/MonthlySummary';
+import { Button } from './components/ui/Button';
+import { Spinner } from './components/ui/Spinner';
+import { useAuth } from './hooks/useAuth';
+import { useDashboard } from './hooks/useDashboard';
+import { useTheme } from './hooks/useTheme';
 
 export default function App() {
-  const { instance, accounts } = useMsal();
-  const [file, setFile] = useState<File | null>(null);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [summary, setSummary] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { isAuthenticated, displayName, login, logout, getAccessToken } = useAuth();
 
-  const getToken = async () => {
-    const tokenResponse = await instance.acquireTokenSilent({
-      ...loginRequest,
-      account: accounts[0],
-    });
+  const {
+    receipts,
+    summaries,
+    loading,
+    uploading,
+    processing,
+    error,
+    refresh,
+    upload,
+  } = useDashboard({ enabled: isAuthenticated, getAccessToken });
 
-    return tokenResponse.accessToken;
-  };
-
-  const loadReceipts = async () => {
-    setLoading(true);
-    setMessage("Loading receipts...");
-
-    const token = await getToken();
-
-    const response = await fetch("http://localhost:5279/receipts", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await response.json();
-
-    setReceipts(data);
-    setMessage("");
-    setLoading(false);
-  };
-
-  const loadSummary = async () => {
-    setLoading(true);
-    setMessage("Loading summary...");
-
-    const token = await getToken();
-
-    const response = await fetch("http://localhost:5279/summary", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await response.json();
-
-    setSummary(JSON.stringify(data, null, 2));
-    setMessage("");
-    setLoading(false);
-  };
-
-  const uploadReceipt = async () => {
-    if (!file) {
-      setMessage("Choose an image first.");
-      return;
-    }
-
-    setLoading(true);
-    setMessage("Creating upload URL...");
-
-    const token = await getToken();
-
-    const sasResponse = await fetch("http://localhost:5279/uploads/sas", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const sasData = await sasResponse.json();
-
-    setMessage("Uploading receipt image...");
-
-    const uploadResponse = await fetch(sasData.uploadUrl, {
-      method: "PUT",
-      headers: {
-        "x-ms-blob-type": "BlockBlob",
-        "Content-Type": file.type || "image/png",
-      },
-      body: file,
-    });
-
-    if (!uploadResponse.ok) {
-      setMessage("Upload failed.");
-      setLoading(false);
-      return;
-    }
-
-    setMessage("Uploaded. Processing receipt...");
-
-    setTimeout(async () => {
-      await loadReceipts();
-      await loadSummary();
-      setMessage("Done.");
-      setLoading(false);
-    }, 4000);
-  };
-
-  const logout = async () => {
-    await instance.logoutRedirect();
-  };
-
-  if (accounts.length === 0) {
-    return (
-      <main style={{ padding: 32 }}>
-        <h1>ReceiptTrackerX</h1>
-        <button onClick={() => instance.loginRedirect(loginRequest)}>
-          Log in with Microsoft
-        </button>
-      </main>
-    );
-  }
+  // Only show the Refresh button's pressed/spinning state when the user
+  // actually clicked it — never while an upload or background poll is running.
+  const userRefreshing = loading && !uploading && !processing;
 
   return (
-    <main style={{ padding: 32, maxWidth: 900 }}>
-      <h1>ReceiptTrackerX</h1>
-      <p>Logged in as {accounts[0].username}</p>
+    <div className="min-h-screen bg-background text-foreground">
+      <Header
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        username={displayName}
+        rightSlot={
+          isAuthenticated && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={refresh}
+                disabled={userRefreshing}
+                leftIcon={<RefreshIcon spinning={userRefreshing} />}
+              >
+                Refresh
+              </Button>
+              <Button variant="ghost" size="sm" onClick={logout}>
+                Sign out
+              </Button>
+            </>
+          )
+        }
+      />
 
-      <section style={{ marginBottom: 24 }}>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-
-        <button onClick={uploadReceipt} disabled={loading}>
-          Upload Receipt
-        </button>
-
-        <button onClick={loadReceipts} disabled={loading}>
-          Refresh Receipts
-        </button>
-
-        <button onClick={loadSummary} disabled={loading}>
-          Load Summary
-        </button>
-
-        <button onClick={logout}>Log out</button>
-      </section>
-
-      {message && <p>{message}</p>}
-
-      {summary && (
-        <section
-          style={{
-            marginBottom: 24,
-            padding: 16,
-            border: "1px solid gray",
-            borderRadius: 8,
-          }}
-        >
-          <h2>Summary</h2>
-          <pre>{summary}</pre>
-        </section>
-      )}
-
-      <h2>Receipts</h2>
-
-      {receipts.length === 0 ? (
-        <p>No receipts yet.</p>
+      {!isAuthenticated ? (
+        <SignInScreen onSignIn={login} />
       ) : (
-        <table border={1} cellPadding={8}>
-          <thead>
-            <tr>
-              <th>Merchant</th>
-              <th>Total</th>
-              <th>Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+          <section className="animate-fade-in">
+            <SectionHeader
+              title="Monthly summary"
+              description="Spending and receipt counts by month."
+            />
+            <MonthlySummary summaries={summaries} />
+          </section>
 
-          <tbody>
-            {receipts.map((receipt) => (
-              <tr key={receipt.id}>
-                <td>{receipt.merchantName ?? "Unknown"}</td>
-                <td>{receipt.total ?? "—"}</td>
-                <td>{receipt.transactionDate ?? "—"}</td>
-                <td>{receipt.status ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <section className="mt-10 animate-fade-in">
+            <SectionHeader
+              title="Upload"
+              description="Drop a receipt to extract its details automatically."
+            />
+            <ReceiptUploader uploading={uploading} onUpload={upload} />
+            {processing && (
+              <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
+                <Spinner size={14} />
+                <span>Processing</span>
+              </div>
+            )}
+            {error && (
+              <div className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+                {error}
+              </div>
+            )}
+          </section>
+
+          <section className="mt-10 animate-fade-in">
+            <SectionHeader
+              title="Receipts"
+              description="Everything you've uploaded, newest first."
+              right={
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                  {receipts.length} total
+                </span>
+              }
+            />
+            <ReceiptList receipts={receipts} />
+          </section>
+        </main>
       )}
-    </main>
+    </div>
+  );
+}
+
+interface SectionHeaderProps {
+  title: string;
+  description?: string;
+  right?: React.ReactNode;
+}
+
+function SectionHeader({ title, description, right }: SectionHeaderProps) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+        {description && (
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning?: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={spinning ? 'animate-spin' : undefined}
+      aria-hidden
+    >
+      <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
   );
 }
