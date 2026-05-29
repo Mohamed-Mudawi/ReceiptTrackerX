@@ -1,229 +1,315 @@
 # ReceiptTrackerX
 
-Intelligent receipt-processing and expense-tracking application built with Azure services.
+ReceiptTrackerX is a cloud-native expense tracking application that automatically extracts data from receipt images and generates spending summaries using Azure services.
 
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Azure](https://img.shields.io/badge/Azure-%230078D4.svg?style=flat&logo=microsoftazure&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
+Users upload receipts through a web application, and the platform processes them asynchronously using Azure Functions, Azure Document Intelligence, Cosmos DB, and Azure Service Bus.
 
-## Table of Contents
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Configuration](#configuration)
-- [Usage](#usage)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+---
 
-## Overview
+## System Architecture
 
-ReceiptTrackerX is an intelligent receipt-processing and expense-tracking application that leverages Azure cloud services to automate the capture, extraction, categorization, and analysis of receipt data. Users can upload receipt images, which are automatically processed using Azure Document Intelligence to extract key information like merchant name, transaction date, line items, and totals. The extracted data is stored in Azure Cosmos DB and made available through a RESTful API for visualization and analysis in the frontend application.
+![ReceiptTrackerX System Architecture](docs/diagrams/system-architecture.png)
 
-This project follows Azure best practices with a serverless architecture using Azure Functions, Container Apps, and various Azure data services.
+End-to-end, event-driven, serverless receipt processing on Microsoft Azure. The React frontend uploads receipts directly to Blob Storage using a short-lived SAS URL issued by the API. Event Grid triggers an Azure Function that runs OCR via Document Intelligence, persists structured receipt data to Cosmos DB, and publishes a message to Service Bus. A background Analysis Worker consumes those messages to build monthly spending summaries.
 
-## Features
+---
 
-- **Automatic Receipt Processing**: Upload receipt images and automatically extract structured data
-- **Intelligent Data Extraction**: Uses Azure Document Intelligence's prebuilt receipt model
-- **Secure Storage**: Raw receipt images stored in Azure Blob Storage
-- **Scalable Data Storage**: Structured data stored in Azure Cosmos DB
-- **Decoupled Processing**: Event-driven architecture using Azure Event Grid and Service Bus
-- **Modern Frontend**: React-based interface for uploading receipts and viewing expenses
-- **Authentication & Security**: Integrated with Azure AD B2C/Microsoft Entra ID
-- **Monitoring & Analytics**: Application Insights for performance monitoring
-- **Cost Management**: Track Azure resource consumption
-- **CI/CD Pipeline**: Automated builds and deployments with GitHub Actions
+## Live Application
 
-## Architecture
+**Frontend:** https://wonderful-meadow-0dd696d0f.7.azurestaticapps.net
 
-![Architecture Diagram](docs/architecture.png)
+**API:** https://receipttrackerx-api.azurewebsites.net
 
-The application follows a microservices architecture with the following components:
+---
 
-1. **Frontend Application** (React)
-   - User interface for uploading receipts and viewing expense data
-   - Secure authentication via Azure AD B2C
-   - Calls to backend RESTful APIs
+# Azure Services Used
 
-2. **Receipt Processing Function** (Azure Function)
-   - Triggered by Azure Event Grid when new blobs are uploaded
-   - Downloads receipt images from Blob Storage
-   - Processes images using Azure Document Intelligence
-   - Stores extracted data in Cosmos DB
-   - Publishes messages to Service Bus for downstream processing
+## Azure Static Web Apps
 
-3. **Analysis Worker** (Azure Function/Container App)
-   - Listens to Service Bus queue
-   - Performs additional processing (categorization, aggregation)
-   - Updates aggregated data in Cosmos DB
+Hosts the React frontend.
 
-4. **API Service** (Azure Container App)
-   - Provides RESTful endpoints for frontend consumption
-   - Retrieves receipt and summary data from Cosmos DB
+## Azure App Service
 
-5. **Data Storage**
-   - **Azure Blob Storage**: Stores raw receipt images
-   - **Azure Cosmos DB**: Stores structured receipt data and aggregates
-   - **Azure Service Bus**: Decouples processing components
+Hosts the ASP.NET 8 Minimal API.
 
-6. **Infrastructure**
-   - Defined as code (Bicep/Terraform) for reproducibility
-   - Managed via GitHub with CI/CD pipelines
+## Azure Blob Storage
 
-## Getting Started
+Stores uploaded receipt images.
 
-### Prerequisites
+## Azure Event Grid
 
-- [Azure Account](https://azure.microsoft.com/free/) (Azure for Students recommended)
-- [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
-- [Docker](https://www.docker.com/products/docker-desktop)
-- [Git](https://git-scm.com/)
+Triggers processing whenever a new receipt is uploaded.
 
-### Installation
+## Azure Functions
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/ReceiptTrackerX.git
-   cd ReceiptTrackerX
-   ```
+Processes uploaded receipts.
 
-2. **Set up Azure resources**
-   ```bash
-   # Login to Azure
-   az login
-   
-   # Create resource group
-   az group create --name rg-receipttracker --location eastus
-   
-   # Deploy infrastructure (Bicep/Terraform templates)
-   # ./deploy-infra.sh  # or your preferred IaC tool
-   ```
+Responsibilities:
 
-3. **Install dependencies**
-   ```bash
-   # Frontend
-   cd frontend
-   npm install
-   
-   # Backend functions
-   cd ../functions
-   npm install
-   
-   # API service
-   cd ../api
-   npm install
-   ```
+* Download uploaded receipt
+* Call Document Intelligence
+* Extract receipt data
+* Store receipt in Cosmos DB
+* Publish processing event to Service Bus
 
-4. **Configure environment variables**
-   Copy the example environment files and fill in your values:
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your Azure resource names and keys
-   ```
+## Azure Document Intelligence
 
-### Configuration
+Uses the prebuilt receipt model to extract:
 
-Update the following configuration files with your Azure resource details:
+* Merchant name
+* Transaction date
+* Total amount
+* Line items
 
-- `frontend/src/config.js` - Frontend API endpoints and auth settings
-- `functions/local.settings.json` - Azure Function app settings
-- `api/.env` - API service environment variables
-- `infra/main.bicep` or `infra/main.tf` - Infrastructure parameters
+## Azure Cosmos DB
 
-## Usage
+Stores:
 
-### Development
+### receipts container
 
-1. **Start the frontend development server**
-   ```bash
-   cd frontend
-   npm start
-   ```
+Processed receipt data.
 
-2. **Start Azure Functions locally**
-   ```bash
-   cd functions
-   func start
-   ```
+### summaries container
 
-3. **Start the API service**
-   ```bash
-   cd api
-   npm run dev
-   ```
+Aggregated monthly spending summaries.
 
-4. **Upload a receipt**
-   - Navigate to `http://localhost:3000`
-   - Sign up/log in using Azure AD B2C
-   - Click "Upload Receipt" and select an image file
-   - View processed data in your dashboard
+## Azure Service Bus
 
-### Production Deployment
+Decouples receipt ingestion from analysis.
 
-The application is designed for deployment to Azure using GitHub Actions:
+Used to send receipt processing events to the analysis worker.
 
-1. Push changes to the `main` branch
-2. GitHub Actions will automatically:
-   - Build and test the frontend
-   - Build and publish Docker images to Azure Container Registry
-   - Deploy Azure Functions
-   - Deploy Container Apps
-   - Update infrastructure as needed
+## Analysis Worker
 
-## Project Structure
+Consumes Service Bus messages and updates spending summaries.
 
-```
-ReceiptTrackerX/
-├── .github/                  # GitHub Actions workflows
-├── docs/                     # Documentation and diagrams
-├── frontend/                 # React frontend application
-│   ├── public/
-│   ├── src/
-│   └── package.json
-├── functions/                # Azure Functions for processing
-│   ├── ReceiptProcessor/
-│   ├── AnalysisWorker/
-│   └── host.json
-├── api/                      # Node.js API service (Container App)
-│   ├── src/
-│   ├── Dockerfile
-│   └── package.json
-├── infra/                    # Infrastructure as Code (Bicep/Terraform)
-│   ├── main.bicep
-│   └── parameters.json
-├── scripts/                  # Deployment and utility scripts
-└── README.md
+## Microsoft Entra ID
+
+Handles user authentication and authorization.
+
+Frontend uses MSAL to authenticate users and obtain API access tokens.
+
+---
+
+# Receipt Upload Flow
+
+The diagram below shows the high-level sequence of uploading a receipt and processing it asynchronously across the platform.
+
+![Receipt Upload Flow](docs/diagrams/upload-flow.png)
+
+1. The user selects a receipt image from their device.
+2. The frontend requests a short-lived SAS URL from the API and uploads the file directly to Blob Storage.
+3. Blob Storage persists the file in the `receipts` container and emits a `BlobCreated` event.
+4. Event Grid triggers the Receipt Processor Azure Function.
+5. The function calls Azure Document Intelligence to OCR and extract receipt fields.
+6. Extracted data is stored in Cosmos DB (`receipts` container) and a message is published to Service Bus.
+7. The dashboard refreshes and the user sees the processed receipt with updated spending summaries.
+
+---
+
+# Authentication Flow
+
+Users sign in with their Microsoft account through Microsoft Entra ID. The frontend uses MSAL to obtain a JWT access token, which is sent on every API call so the backend can authorize requests and scope data to the signed-in user.
+
+![Authentication Flow](docs/diagrams/auth-flow.png)
+
+1. The user opens the application in the browser.
+2. The frontend redirects the user to sign in with Microsoft.
+3. Microsoft Entra ID authenticates the user.
+4. A JWT access token is issued back to the frontend.
+5. The frontend calls the API with the token in the `Authorization: Bearer <token>` header.
+6. The API validates the token, then reads from or writes to Cosmos DB on the user's behalf.
+
+All API requests require a valid JWT token, tokens are validated on every request, and users can only access their own data.
+
+---
+
+# CI/CD
+
+GitHub Actions are used for automated deployments.
+
+## Frontend Deployment
+
+Trigger:
+
+```text
+Push to main
 ```
 
-## Contributing
+Workflow:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Build React application
+2. Deploy to Azure Static Web Apps
+3. Publish updated frontend
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## API Deployment
 
-Please make sure to update tests as appropriate and follow the existing code style.
+Trigger:
 
-## License
+```text
+Push to main
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Workflow:
 
-## Acknowledgements
+1. Restore .NET dependencies
+2. Build ASP.NET API
+3. Publish application
+4. Deploy to Azure App Service
 
-- [Azure Document Intelligence](https://azure.microsoft.com/services/ai-document-intelligence/) for receipt processing capabilities
-- [Azure Functions](https://azure.microsoft.com/services/functions/) for serverless compute
-- [Azure Cosmos DB](https://azure.microsoft.com/services/cosmos-db/) for globally distributed database
-- [Azure Service Bus](https://azure.microsoft.com/services/service-bus/) for reliable messaging
-- [Azure Container Apps](https://azure.microsoft.com/services/container-apps/) for microservices hosting
-- [React](https://reactjs.org/) for the frontend framework
-- GitHub's [README guidelines](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes) for documentation best practices
+## Function Deployment
+
+Trigger:
+
+```text
+Push to main
+```
+
+Workflow:
+
+1. Package Azure Function
+2. Deploy to Azure Function App
+
+---
+
+# Running Locally
+
+## Prerequisites
+
+* Node.js 20+
+* .NET 8 SDK
+* Azure Functions Core Tools
+* Azure account
+* Git
+
+---
+
+## Frontend
+
+```bash
+cd frontend
+
+npm install
+
+npm run dev
+```
+
+Runs on:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## API
+
+```bash
+cd api
+
+dotnet restore
+
+dotnet run
+```
+
+Runs on:
+
+```text
+http://localhost:5279
+```
+
+---
+
+## Azure Function
+
+```bash
+cd receipt_processor
+
+func start
+```
+
+---
+
+# Project Structure
+
+```text
+ReceiptTrackerX
+│
+├── frontend/
+│   ├── src/
+│   └── public/
+│
+├── api/
+│   ├── Endpoints/
+│   ├── Models/
+│   ├── Services/
+│   └── Program.cs
+│
+├── receipt_processor/
+│   └── Azure Function
+│
+├── analysis_worker/
+│   └── Service Bus Consumer
+│
+├── docs/
+│   └── diagrams/
+│
+└── .github/
+    └── workflows/
+```
+
+---
+
+# Key Features
+
+* Microsoft authentication
+* Direct Blob uploads using SAS URLs
+* Event-driven architecture
+* Automatic OCR receipt extraction
+* Cosmos DB persistence
+* Monthly spending summaries
+* Asynchronous processing with Service Bus
+* Azure-hosted production deployment
+* Automated CI/CD with GitHub Actions
+
+---
+
+# Future Improvements
+
+* Receipt categorization
+* Spending analytics charts
+* Budget tracking
+* AI-powered spending insights
+* Receipt search and filtering
+* Export to CSV/PDF
+
+---
+
+# Tech Stack
+
+Frontend
+
+* React
+* TypeScript
+* Vite
+* MSAL
+
+Backend
+
+* ASP.NET 8 Minimal APIs
+* Azure SDKs
+
+Cloud
+
+* Azure Blob Storage
+* Azure Functions
+* Azure Document Intelligence
+* Azure Cosmos DB
+* Azure Service Bus
+* Azure App Service
+* Azure Static Web Apps
+
+DevOps
+
+* GitHub Actions
+* GitHub
