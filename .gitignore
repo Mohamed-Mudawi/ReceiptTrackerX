@@ -3,8 +3,8 @@
 
 # Dependencies
 node_modules/
-/package-lock.json
-/yarn.lock
+package-lock.json
+yarn.lock
 .pnp/
 .pnp.js
 
@@ -14,13 +14,22 @@ node_modules/
 !.env.example
 
 # Build outputs
-/dist/
-/build/
-/.out/
-/.cache/
-/.temp/
+dist/
+build/
+out/
+.cache/
+.temp/
+
+# API build artifacts
 api/bin/
 api/obj/
+api/publish/
+api/*.zip
+
+# Azure troubleshooting artifacts
+api/webapp_logs/
+latest_logs/
+webapp_logs.zip
 
 # IDE and editor files
 .vscode/
@@ -28,7 +37,6 @@ api/obj/
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
 
 # OS generated files
@@ -50,7 +58,6 @@ coverage/
 .lcov*
 
 # Testing
-.cache/
 .nyc_output
 
 # Docker
@@ -69,7 +76,10 @@ backup-*/
 .*.swp
 .SFTP_CACHE
 
+# Azure Functions local settings
 local.settings.json
+
+# Python
 .venv/
 __pycache__/
 
