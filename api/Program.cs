@@ -74,7 +74,7 @@ app.MapGet("/health", () =>
 {
     return Results.Ok(new
     {
-        status = "healthy",
+        status = "Healthy",
         service = "api",
         timestamp = DateTime.UtcNow
     });
