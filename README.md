@@ -8,7 +8,7 @@ Users upload receipts through a web application, and the platform processes them
 
 ## System Architecture
 
-![ReceiptTrackerX System Architecture](docs/diagrams/system-architecture.png)
+![ReceiptTrackerX System Architecture](docs/diagrams/system-architecture-v2.png)
 
 End-to-end, event-driven, serverless receipt processing on Microsoft Azure. The React frontend uploads receipts directly to Blob Storage using a short-lived SAS URL issued by the API. Event Grid triggers an Azure Function that runs OCR via Document Intelligence, persists structured receipt data to Cosmos DB, and publishes a message to Service Bus. A background Analysis Worker consumes those messages to build monthly spending summaries.
 
@@ -96,7 +96,7 @@ Frontend uses MSAL to authenticate users and obtain API access tokens.
 The diagram below shows the high-level sequence of uploading a receipt and processing it asynchronously across the platform.
 
 <p align="center">
-  <img src="docs/diagrams/upload-flow.png" alt="Receipt Upload Flow" width="280" />
+  <img src="docs/diagrams/upload-flow-v2.png" alt="Receipt Upload Flow" width="280" />
 </p>
 
 1. The user selects a receipt image from their device.
@@ -114,7 +114,7 @@ The diagram below shows the high-level sequence of uploading a receipt and proce
 Users sign in with their Microsoft account through Microsoft Entra ID. The frontend uses MSAL to obtain a JWT access token, which is sent on every API call so the backend can authorize requests and scope data to the signed-in user.
 
 <p align="center">
-  <img src="docs/diagrams/auth-flow.png" alt="Authentication Flow" width="280" />
+  <img src="docs/diagrams/auth-flow-v2.png" alt="Authentication Flow" width="280" />
 </p>
 
 1. The user opens the application in the browser.
